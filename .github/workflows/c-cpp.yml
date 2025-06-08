@@ -1,0 +1,66 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main", "${NUMBER}-*" ]
+  pull_request:
+    branches: [ "main", "${NUMBER}-*" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          sudo apt-get install -y cmake 
+          sudo apt-get install -y gcc 
+          sudo apt-get install -y make 
+          sudo apt-get install -y git
+          sudo apt-get install -y libboost-all-dev 
+          sudo apt-get install -y libopenmpi-dev 
+          sudo apt-get install -y libspdlog-dev 
+
+      - name: Echo Dependencies Version
+        run: |
+          g++ --version
+          cmake --version
+          make --version
+          git --version
+          dpkg -s libboost-dev | grep 'Version'
+          dpkg -s libopenmpi-dev | grep 'Version'
+          dpkg -s libspdlog-dev | grep 'Version'
+
+      - name: Install Gtests
+        run: |
+          cd ~
+          git clone https://github.com/google/googletest.git
+          cd googletest
+          mkdir build && cd build
+          cmake .. -DBUILD_SHARED_LIBS=ON -DINSTALL_GTEST=ON -DBUILD_GMOCK=ON -DCMAKE_INSTALL_PREFIX:PATH=/usr
+          make -j8
+          sudo make install
+          sudo ldconfig
+
+      - name: Clone GemPBA Tester
+        run: |
+          git clone https://github.com/rapastranac/gempba-tester.git
+          cd gempba-tester
+
+      - name: Build
+        run: |
+          cd ${GITHUB_WORKSPACE}
+          mkdir build && cd build
+          cmake ..
+          make -j 2
+
+      - name: Make run script executable
+        run: chmod +x ./run.sh
+
+      - name: Run Test
+        run: ./run.sh

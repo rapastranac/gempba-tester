@@ -1,0 +1,9 @@
+.idea
+build
+.build
+.build-debug
+.build-release
+.cmake
+bin/*
+output
+results
