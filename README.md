@@ -1,8 +1,8 @@
 # GemPBA tester
 
 [![C/C++ CI](https://github.com/rapastranac/gempba-tester/actions/workflows/c-cpp.yml/badge.svg)](https://github.com/rapastranac/gempba-tester/actions/workflows/c-cpp.yml)
-![GitHub License](https://img.shields.io/github/license/rapastranac/gempba-tester)
-![GitHub Release](https://img.shields.io/github/v/release/rapastranac/gempba-tester)
+![License](https://badgen.net/github/license/rapastranac/gempba-tester)
+![Latest Release](https://badgen.net/github/release/rapastranac/gempba-tester)
 
 This is a collection of small programs to test the [**GemPBA**](https://github.com/rapastranac/gempba) library. I will
 add more tests as I go along.
