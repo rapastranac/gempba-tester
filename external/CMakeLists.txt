@@ -14,7 +14,8 @@ include(${CPM_DOWNLOAD_LOCATION})
 CPMAddPackage(
         NAME gempba
         GITHUB_REPOSITORY rapastranac/gempba
-        GIT_TAG v2.0.0
+        GIT_TAG v3.0.0
+        GIT_SHALLOW TRUE          # shallow clone: minimal history
 )
 
 add_library(external INTERFACE)

@@ -1,0 +1,76 @@
+name: C/C++ CI (Ubuntu 24.04)
+
+on:
+  push:
+    branches: [ "main", "${NUMBER}-*" ]
+  pull_request:
+    branches: [ "main", "${NUMBER}-*" ]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      # 1 Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.ref }}
+
+      # 2 Install system dependencies
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y
+          sudo apt-get install -y build-essential 
+          sudo apt-get install -y cmake 
+          sudo apt-get install -y gcc 
+          sudo apt-get install -y make 
+          sudo apt-get install -y git 
+          sudo apt-get install -y libboost-all-dev 
+          sudo apt-get install -y libopenmpi-dev 
+          sudo apt-get install -y libgtest-dev 
+          sudo apt-get install -y libgmock-dev     
+
+      # 3 Verify installed dependencies
+      - name: Verify Dependencies
+        run: |
+          echo "✅ g++: $(g++ --version | head -1 | awk '{print $4}')"
+          echo "✅ cmake: $(cmake --version | head -1 | awk '{print $3}')"
+          echo "✅ make: $(make --version | head -1 | awk '{print $3}')"
+          echo "✅ libboost-dev: $(dpkg -s libboost-dev | grep 'Version' | awk '{print $2}')"
+          echo "✅ libopenmpi-dev: $(dpkg -s libopenmpi-dev | grep 'Version' | awk '{print $2}')"
+          echo "✅ libgtest-dev: $(dpkg -s libgtest-dev | grep 'Version' | awk '{print $2}')"
+          echo "✅ libgmock-dev: $(dpkg -s libgmock-dev | grep 'Version' | awk '{print $2}')"
+
+      # 4 Build the project
+      - name: Build the project
+        run: |
+          cd ${{ github.workspace }}
+          mkdir -p build
+          cd build
+          cmake ..
+          make -j$(nproc)
+
+      # 5 Run tests via run.sh script
+      - name: Run tests
+        run: |
+          cd ${{ github.workspace }}
+          chmod +x ./run.sh
+          
+          echo "🔵 Running test suite..."
+          ./run.sh
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ All tests passed!"
+          else
+            echo "❌ Tests failed"
+            exit 1
+          fi
