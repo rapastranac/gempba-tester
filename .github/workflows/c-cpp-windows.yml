@@ -1,0 +1,118 @@
+name: C/C++ CI (Windows 2022)
+
+on:
+  push:
+    branches: [ "main", "${NUMBER}-*" ]
+  pull_request:
+    branches: [ "main", "${NUMBER}-*" ]
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  build-and-test:
+    runs-on: windows-2022
+    timeout-minutes: 15
+
+    steps:
+      # 1 Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.ref }}
+
+      # 2 Install Microsoft MPI Runtime and SDK
+      - name: Install Microsoft MPI
+        run: |
+          Write-Host "Downloading MS-MPI v10.1.1..."
+
+          Invoke-WebRequest -Uri "https://github.com/microsoft/Microsoft-MPI/releases/download/v10.1.1/msmpisetup.exe" `
+            -OutFile msmpisetup.exe
+
+          Invoke-WebRequest -Uri "https://github.com/microsoft/Microsoft-MPI/releases/download/v10.1.1/msmpisdk.msi" `
+            -OutFile msmpisdk.msi
+
+          Write-Host "Installing MS-MPI Runtime..."
+          Start-Process msmpisetup.exe -ArgumentList "-unattend" -Wait
+
+          Write-Host "Installing MS-MPI SDK..."
+          Start-Process msiexec.exe -ArgumentList "/i msmpisdk.msi /quiet" -Wait
+
+          # Add MS-MPI to PATH for subsequent steps
+          $mpiPath = "C:\Program Files\Microsoft MPI\Bin"
+          echo "$mpiPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          Write-Host "MS-MPI installed and added to PATH"
+        shell: pwsh
+
+
+      # 3 Set up MSYS2 environment and install dependencies
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            base-devel
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-make
+            mingw-w64-x86_64-boost
+            mingw-w64-x86_64-msmpi
+            mingw-w64-x86_64-gtest
+
+      # 4 Verify installed dependencies
+      - name: Verify Dependencies
+        shell: pwsh
+        run: |
+          # Verify MS-MPI (with explicit path check)
+          $mpiPath = "C:\Program Files\Microsoft MPI\Bin\mpiexec.exe"
+          if (Test-Path $mpiPath) {
+            Write-Host "✅ mpiexec.exe found at: $mpiPath"
+          } else {
+            Write-Host "❌ mpiexec.exe not found"
+            exit 1
+          }
+          
+          # Verify MSYS2 tools
+          C:\msys64\usr\bin\bash.exe -lc "g++ --version | head -1"
+          C:\msys64\usr\bin\bash.exe -lc "cmake --version | head -1"
+          C:\msys64\usr\bin\bash.exe -lc "make --version | head -1"
+
+        # 5 Build the project
+      - name: Build the project
+        shell: msys2 {0}
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p build
+          cd build
+          cmake -G "MSYS Makefiles" ..
+          make -j$(nproc)
+
+      # 6 Run tests via run.ps1 script
+      - name: Run tests
+        shell: pwsh
+        run: |
+          cd "${{ github.workspace }}"
+          
+          Write-Host "🔵 Running test suite with MPI..."
+          Write-Host "Working directory: $(Get-Location)"
+          Write-Host "Checking for executable..."
+          
+          if (Test-Path ".\bin\main.exe") {
+            Write-Host "✅ Found main.exe at .\bin\main.exe"
+          } else {
+            Write-Host "❌ main.exe not found at .\bin\main.exe"
+            Get-ChildItem -Recurse -Filter "main.exe" | ForEach-Object { Write-Host "Found at: $($_.FullName)" }
+          }
+          
+          .\run.ps1
+          
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "✅ All tests passed!"
+          } else {
+            Write-Host "❌ Tests failed with exit code: $LASTEXITCODE"
+            exit 1
+          }
