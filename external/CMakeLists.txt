@@ -1,23 +1,15 @@
 cmake_minimum_required(VERSION 3.28)
-include(FetchContent)
-
 project(external)
 
-## CPM
-set(CPM_DOWNLOAD_LOCATION "${CMAKE_BINARY_DIR}/cmake/CPM.cmake")
-if (NOT (EXISTS ${CPM_DOWNLOAD_LOCATION}))
-    message(STATUS "Downloading CPM.cmake")
-    file(DOWNLOAD https://github.com/cpm-cmake/CPM.cmake/releases/latest/download/CPM.cmake ${CPM_DOWNLOAD_LOCATION})
-endif ()
-include(${CPM_DOWNLOAD_LOCATION})
-
-CPMAddPackage(
-        NAME gempba
-        GITHUB_REPOSITORY rapastranac/gempba
-        GIT_TAG v3.0.0
-        GIT_SHALLOW TRUE          # shallow clone: minimal history
-)
-
+# Interface library — no sources compiled here, only dependency propagation
 add_library(external INTERFACE)
 
-target_link_libraries(external INTERFACE gempba)
+find_package(MPI     REQUIRED)
+find_package(gempba  REQUIRED)
+message(STATUS ">>> gempba version found by CMake: ${gempba_VERSION}")
+
+# All dependencies are propagated to any target that links against 'external'
+target_link_libraries(external INTERFACE
+        gempba::gempba
+        MPI::MPI_CXX
+)
